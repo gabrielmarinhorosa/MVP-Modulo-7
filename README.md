@@ -63,6 +63,56 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
+## Deploy no Azure (plano gratuito)
+Um único App Service no plano **Free F1** roda o backend e entrega o frontend compilado. O deploy é automático a cada push na `main`, pelo workflow `.github/workflows/deploy-azure.yml` (roda os testes, compila o frontend e publica).
+
+### 1. Ativar a conta de estudante
+Acesse https://azure.microsoft.com/free/students e entre com o e-mail da faculdade. Não precisa de cartão de crédito.
+
+### 2. Criar o App Service
+No portal (https://portal.azure.com): **Criar um recurso → Aplicativo Web** (*Web App*).
+
+| Campo | Valor |
+|---|---|
+| Assinatura | Azure for Students |
+| Grupo de recursos | Criar novo, ex.: `mackai-rg` |
+| Nome | ex.: `mackai-modulo7` (anote, vai para o GitHub) |
+| Publicar | Código |
+| Pilha de runtime | Python 3.12 |
+| Sistema operacional | Linux |
+| Região | Brazil South (se aparecer erro de política, escolha outra região da lista) |
+| Plano de preços | **Free F1** |
+
+Na aba **Implantação** (*Deployment*): deixe a implantação contínua do GitHub Actions **desabilitada** (o workflow já está no repositório) e a **Autenticação básica** (*Basic authentication*) **habilitada**. Depois: **Revisar + criar → Criar**.
+
+### 3. Configurar o App Service
+Abra o app criado:
+
+1. **Configurações → Variáveis de ambiente** (*Environment variables*) → adicione e clique em **Aplicar**:
+
+   | Nome | Valor |
+   |---|---|
+   | `SCM_DO_BUILD_DURING_DEPLOYMENT` | `true` (obrigatória: faz o Azure instalar o `requirements.txt`) |
+   | `FEEDBACK_FILE` | `/home/data/feedback.jsonl` (mantém os feedbacks entre reinícios) |
+   | `GEMINI_API_KEY` | sua chave do Gemini (opcional: sem ela o assistente roda em modo offline) |
+
+2. **Configurações → Configuração → Configurações gerais** (*General settings*) → **Comando de inicialização** (*Startup Command*) → **Salvar**:
+   ```
+   python -m uvicorn assistente_conversacional.api:app --host 0.0.0.0 --port 8000
+   ```
+3. **Visão geral** (*Overview*) → **Baixar perfil de publicação** (*Download publish profile*). Se o botão estiver desativado, ligue **Credenciais de publicação de Autenticação Básica do SCM** em *Configurações gerais* e salve. Esse arquivo é uma credencial: nunca faça commit dele.
+
+### 4. Configurar o GitHub
+No repositório: **Settings → Secrets and variables → Actions**.
+
+- Aba **Secrets → New repository secret**: nome `AZURE_WEBAPP_PUBLISH_PROFILE`, valor = todo o conteúdo do arquivo `.PublishSettings` baixado.
+- Aba **Variables → New repository variable**: nome `AZURE_WEBAPP_NAME`, valor = nome do App Service (ex.: `mackai-modulo7`).
+
+### 5. Publicar
+Faça push ou merge na `main`, ou rode manualmente em **Actions → Deploy no Azure → Run workflow**. Quando o workflow ficar verde, abra o endereço que aparece em **Visão geral → Domínio padrão** (*Default domain*).
+
+**Limites do plano gratuito F1:** 60 minutos de CPU por dia e 1 GB de RAM. O app "dorme" depois de cerca de 20 minutos sem acesso, então o primeiro acesso seguinte demora alguns segundos. As conversas ficam em memória e se perdem quando o app reinicia.
+
 ## Base de conhecimento
 Os arquivos de `backend/busca_semantica/base_de_conhecimento/` são indexados quando o backend inicia. Para o assistente responder sobre o código e a documentação de vocês, copie os arquivos (`.md`, `.txt`, `.py`, `.ts`, `.tsx`, `.sql`...) para essa pasta e reinicie o backend.
 

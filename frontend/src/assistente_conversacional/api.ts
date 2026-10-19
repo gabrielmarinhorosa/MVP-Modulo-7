@@ -12,8 +12,9 @@ export type Message = {
 export type ConversationSummary = { id: string; title: string; created_at: string };
 export type Health = { status: string; llm: "gemini" | "offline"; documents: number; chunks: number; indexed_at: string };
 
-// Captura a URL do backend injetada pelo Vite ou usa o localhost como alternativa de desenvolvimento
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+// Sem VITE_API_URL, usa o mesmo endereço da página: no Azure o backend entrega o frontend,
+// e em desenvolvimento o proxy do Vite (vite.config.ts) encaminha /api para o localhost:8000.
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${path}`;

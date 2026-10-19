@@ -1,0 +1,52 @@
+# Testa, compila o frontend e publica backend + frontend em um único Azure App Service (plano gratuito F1).
+# Configuração necessária no GitHub (Settings > Secrets and variables > Actions):
+#   - Secret   AZURE_WEBAPP_PUBLISH_PROFILE: conteúdo do perfil de publicação baixado no Azure
+#   - Variable AZURE_WEBAPP_NAME: nome do App Service criado no Azure
+# Passo a passo completo no README, seção "Deploy no Azure".
+
+name: Deploy no Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Testes do backend
+        working-directory: backend
+        run: |
+          pip install -r requirements-dev.txt
+          pytest -q
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Build do frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copia o frontend para dentro do backend
+        run: cp -r frontend/dist backend/frontend_dist
+
+      # O Azure instala o requirements.txt durante o deploy (SCM_DO_BUILD_DURING_DEPLOYMENT=true).
+      - name: Deploy no Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: backend

@@ -8,6 +8,7 @@ from typing import Literal
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from busca_semantica.motor_de_busca import KnowledgeBase
@@ -18,6 +19,7 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 KNOWLEDGE_DIR = Path(os.getenv("KNOWLEDGE_DIR", BASE_DIR / "busca_semantica" / "base_de_conhecimento"))
 FEEDBACK_FILE = Path(os.getenv("FEEDBACK_FILE", BASE_DIR / "data" / "feedback.jsonl"))
+FRONTEND_DIR = BASE_DIR / "frontend_dist"
 
 # 1º CRIAR A APLICAÇÃO ANTES DE QUALQUER MIDDLEWARE
 app = FastAPI(title="MackAI - Módulo 7")
@@ -139,3 +141,8 @@ def feedback(request: FeedbackRequest):
                                         "answer": message["content"], "created_at": now()}, ensure_ascii=False) + "\n")
                 return {"ok": True}
     raise HTTPException(404, "Mensagem não encontrada")
+
+
+# Em produção (Azure), o mesmo servidor entrega o frontend compilado. Fica por último para não cobrir as rotas /api.
+if FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
